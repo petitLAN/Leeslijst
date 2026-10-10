@@ -1,0 +1,21 @@
+# Reading room
+
+An original, account-free reconstruction of the spine-to-cover interaction shown in Bookshelf.so's public launch screenshots. The live original returned HTTP 401 and no original source repository was located. This project does not include Bookshelf.so's original code.
+
+## Open and personalize
+
+Open `index.html` in any modern browser. Click a spine to rotate the book. Click the pulled-out book again to return it to the shelf, or use the previous/next buttons and arrow keys. Use **Edit collection** to rename the shelf, clear the example collection, add books, upload covers, write reviews and rate books. Search, category filters and favorites work locally.
+
+Changes are stored in this browser's localStorage. They do not sync to other visitors or devices. **Download website** exports a standalone HTML file containing the current collection and uploaded covers. Publish this downloaded HTML as `index.html` on any static host to show that collection to everyone. JSON export/import provides portable backups. No application accounts, database, API keys, external scripts or network requests are required.
+
+## Source
+
+All markup, styles, interactions and sample data live in `index.html`. The `bookshelf-data` JSON script contains the starting collection. Local saved data takes precedence over that seed. Remove the `reading-room-v1` localStorage key or import JSON when replacing an existing browser collection.
+
+Books are CSS 3D objects with front, spine, back and page surfaces. The selected book rotates into a three-quarter view and expands its space on the shelf. Reduced-motion preferences disable transitions. Cover uploads are resized to at most 600 pixels high / 500 pixels wide and embedded as JPEG data URLs. Default covers are typographic placeholders, not original published cover artwork.
+
+The app itself has no authentication. The initial managed deployment has the default private hosting access; the downloaded static HTML can be hosted publicly with no authentication.
+
+## Painted archive theme
+
+The dark theme combines a hand-painted library backdrop, angular ink marks, copper details and illustrated book decals on the existing CSS 3D book meshes. Theme CSS is maintained in `art/theme.css` and embedded in the standalone HTML. The background artwork is generated with the built-in image tool and is embedded as a WebP data URL so downloaded HTML works offline. `art/painted-archive.webp` preserves the project asset. Uploaded covers, user notes, click targets and the click-again-to-close interaction are preserved.
