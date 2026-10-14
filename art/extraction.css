@@ -2,14 +2,14 @@
 /* Fixed shelf slots; the extracted book occupies its own foreground layer. */
 .shelf-frame{perspective:1300px}
 .shelf{height:420px;min-height:420px;padding-top:38px;padding-bottom:60px;transform-origin:center top;transition:transform .8s cubic-bezier(.2,.8,.2,1),opacity .8s}
-.shelf-frame.is-pulled .shelf{transform:scale(.8) translateY(-20px);opacity:.83}
+.shelf-frame.is-pulled .shelf{transform:none;opacity:1}
 .slot,.slot.selected{flex:0 0 34px;width:34px;transition:none;z-index:1}
 .slot.selected .book,.slot .book{transform:translateX(17px) rotateY(90deg)}
 .slot.selected .book,.slot.extracted .book,.slot.selected .shadow,.slot.extracted .shadow{opacity:0}
 .shelf-frame:before{bottom:99px;transition:transform .8s;transform-origin:center}
-.shelf-frame.is-pulled:before{transform:translateY(-103px) scaleX(.8)}
+.shelf-frame.is-pulled:before{transform:none}
 .pulled{position:absolute;left:calc(50% - 105px);bottom:79px;width:210px;height:var(--height);padding:0;border:0;background:none;perspective:1100px;z-index:5;pointer-events:none;outline-offset:8px}
-.pulled.out{pointer-events:auto}.pulled *{pointer-events:none}
+.pulled{touch-action:pan-y;user-select:none;-webkit-user-select:none;cursor:grab}.pulled:active{cursor:grabbing}.pulled.out{pointer-events:auto}.pulled *{pointer-events:none}
 .pulled .book{position:absolute;left:10px;top:0;width:190px;height:100%;transform-style:preserve-3d;transform-origin:center center;opacity:1;transform:translate3d(var(--source-x,0px),var(--source-y,-70px),0px) rotateY(90deg);transition:transform .8s cubic-bezier(.2,.8,.2,1),opacity .35s}
 .pulled.out .book{opacity:1;transform:translate3d(0,0,60px) rotateY(-18deg) rotateX(3deg)}
 .pulled.out.back-facing .book{transform:translate3d(0,0,60px) rotateY(162deg) rotateX(3deg)}
@@ -22,4 +22,4 @@
 .back-imprint{font-size:6px;letter-spacing:1.3px;margin-top:auto;padding-top:7px;border-top:1px solid currentColor;opacity:.6}
 .back-label,.back-title,.back-blurb,.back-imprint{position:relative;z-index:4}
 #interaction-hint{color:#bed0c7}.shelf-bottom{position:relative;z-index:7}
-@media(max-width:700px){.shelf{height:415px;min-height:415px;padding-top:36px}.pulled{bottom:83px}.shelf-frame.is-pulled .shelf{transform:scale(.8) translateY(-24px)}.shelf-frame.is-pulled:before{transform:translateY(-106px) scaleX(.8)}}
+@media(max-width:700px){.shelf{height:415px;min-height:415px;padding-top:36px}.pulled{bottom:83px}.shelf-frame.is-pulled .shelf{transform:none}.shelf-frame.is-pulled:before{transform:none}}
