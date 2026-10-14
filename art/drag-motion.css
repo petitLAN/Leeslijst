@@ -1,0 +1,17 @@
+/* Shared projection: move the camera container, rotate only its book mesh. */
+.shelf-frame,.shelf{perspective:none}
+.slot{perspective:1100px;perspective-origin:17px 50%}
+.pulled{perspective:1100px;perspective-origin:105px 50%;transform:translate3d(var(--source-x,0px),var(--source-y,0px),0);transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.pulled.out{transform:translate3d(0,0,0)}
+.pulled .book{transform:translateZ(-95px) rotateY(90deg) rotateX(0deg);transition:transform var(--turn-time,.8s) cubic-bezier(.2,.8,.2,1)}
+.pulled.out .book{transform:translateZ(60px) rotateY(var(--yaw,-18deg)) rotateX(3deg)}
+.pulled.out.back-facing .book{transform:translateZ(60px) rotateY(var(--yaw,162deg)) rotateX(3deg)}
+.pulled.dragging .book{transition:none}
+.pulled.instant,.pulled.instant .book{transition:none!important}
+.pulled.returning .book{transform:translateZ(-95px) rotateY(var(--return-yaw,90deg)) rotateX(0deg)}
+.pulled.returning{pointer-events:none}
+/* Shelf buttons show a pure spine; hide cover edges only at the end of return. */
+.slot .front,.slot .back,.slot .pages{visibility:hidden}
+.pulled .front,.pulled .back,.pulled .pages{opacity:1;transition:opacity .12s linear}
+.pulled.returning .front,.pulled.returning .back,.pulled.returning .pages{opacity:0;transition-delay:.65s}
+@media(prefers-reduced-motion:reduce){.pulled,.pulled .book,.pulled .front,.pulled .back,.pulled .pages{transition:none!important}}

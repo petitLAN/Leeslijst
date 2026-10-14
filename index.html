@@ -100,6 +100,26 @@ label,.hint,.section-title{color:#b2c3be}.primary{background:#8a7150;border:1px 
 #interaction-hint{color:#bed0c7}.shelf-bottom{position:relative;z-index:7}
 @media(max-width:700px){.shelf{height:415px;min-height:415px;padding-top:36px}.pulled{bottom:83px}.shelf-frame.is-pulled .shelf{transform:none}.shelf-frame.is-pulled:before{transform:none}}
 </style>
+<style id="drag-motion">
+/* Shared projection: move the camera container, rotate only its book mesh. */
+.shelf-frame,.shelf{perspective:none}
+.slot{perspective:1100px;perspective-origin:17px 50%}
+.pulled{perspective:1100px;perspective-origin:105px 50%;transform:translate3d(var(--source-x,0px),var(--source-y,0px),0);transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.pulled.out{transform:translate3d(0,0,0)}
+.pulled .book{transform:translateZ(-95px) rotateY(90deg) rotateX(0deg);transition:transform var(--turn-time,.8s) cubic-bezier(.2,.8,.2,1)}
+.pulled.out .book{transform:translateZ(60px) rotateY(var(--yaw,-18deg)) rotateX(3deg)}
+.pulled.out.back-facing .book{transform:translateZ(60px) rotateY(var(--yaw,162deg)) rotateX(3deg)}
+.pulled.dragging .book{transition:none}
+.pulled.instant,.pulled.instant .book{transition:none!important}
+.pulled.returning .book{transform:translateZ(-95px) rotateY(var(--return-yaw,90deg)) rotateX(0deg)}
+.pulled.returning{pointer-events:none}
+/* Shelf buttons show a pure spine; hide cover edges only at the end of return. */
+.slot .front,.slot .back,.slot .pages{visibility:hidden}
+.pulled .front,.pulled .back,.pulled .pages{opacity:1;transition:opacity .12s linear}
+.pulled.returning .front,.pulled.returning .back,.pulled.returning .pages{opacity:0;transition-delay:.65s}
+@media(prefers-reduced-motion:reduce){.pulled,.pulled .book,.pulled .front,.pulled .back,.pulled .pages{transition:none!important}}
+
+</style>
 </head>
 <body>
 <header><div class="brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M3 4.5h6c1.7 0 3 1 3 2.5v14c0-1.5-1.3-2.5-3-2.5H3zM21 4.5h-6c-1.7 0-3 1-3 2.5v14c0-1.5 1.3-2.5 3-2.5h6z"/></svg>Reading room</div><button class="small-button" id="manage">Edit collection <span aria-hidden="true">↗</span></button></header>
@@ -115,7 +135,7 @@ label,.hint,.section-title{color:#b2c3be}.primary{background:#8a7150;border:1px 
 <script>
 'use strict';
 const $=id=>document.getElementById(id), KEY='reading-room-v1';
-const seed=JSON.parse($('bookshelf-data').textContent);let state=seed,filter='all',selected=null,editing=null,pendingCover='',visible=[],scrollTimer=null,facing='front',pulledId=null,returnTimer=null,swipeStart=null,suppressBookClick=false;
+const seed=JSON.parse($('bookshelf-data').textContent);let state=seed,filter='all',selected=null,editing=null,pendingCover='',visible=[],scrollTimer=null,facing='front',pulledId=null,returnTimer=null,swipeStart=null,suppressBookClick=false,bookAngle=-18;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function validate(data){if(!data||typeof data.title!=='string'||typeof data.bio!=='string'||!Array.isArray(data.books)||data.books.length>1000)throw Error('Use a valid Reading Room JSON backup.');const ids=new Set();return{title:data.title.slice(0,80),bio:data.bio.slice(0,800),demo:!!data.demo,books:data.books.map((b,i)=>{if(typeof b.title!=='string'||typeof b.author!=='string')throw Error('Every book needs a title and author.');let id=String(b.id||crypto.randomUUID());if(ids.has(id))id=crypto.randomUUID();ids.add(id);return{id,title:b.title.slice(0,180),author:b.author.slice(0,160),category:['Fiction','Nonfiction','Poetry','Other'].includes(b.category)?b.category:'Other',color:/^#[0-9a-f]{6}$/i.test(b.color)?b.color:'#496758',height:Math.max(235,Math.min(290,Number(b.height)||265)),rating:Math.max(0,Math.min(5,Math.round(Number(b.rating)||0))),date:/^\d{4}-\d{2}-\d{2}$/.test(b.date)&&!isNaN(new Date(b.date).getTime())?b.date:'',review:String(b.review||'').slice(0,10000),blurb:String(b.blurb||'').slice(0,5000),favorite:!!b.favorite,cover:/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(b.cover||'')?b.cover:''};})};}
 try{const saved=localStorage.getItem(KEY);if(saved)state=validate(JSON.parse(saved));}catch(e){console.warn('Local collection could not be loaded:',e.message);}
@@ -135,23 +155,84 @@ const forms=[
 const exampleBlurbs={"The Little Prince": "A young prince leaves his tiny planet and meets a series of strange adults before arriving on Earth. Through his encounters, this fable explores friendship, love and the things that matter most.", "A Room of One’s Own": "Woolf considers what women need in order to write freely, exploring the relationship between creative independence, money, education and a space of one’s own.", "The Art of Noticing": "An invitation to look more closely at everyday life. Walker offers exercises and experiments that help readers rediscover curiosity, attention and the unexpected details around them.", "The Hobbit": "Bilbo Baggins leaves his comfortable home to join a company of dwarves on a dangerous journey. Their quest leads through riddles, hidden kingdoms and a dragon’s hoard.", "Ways of Seeing": "Berger examines how images shape what we see and what we believe. These essays explore art, ownership, representation and the visual language of advertising.", "The Secret History": "A group of classics students at a secluded college become entangled in obsession and violence. Their pursuit of beauty and belonging leads to consequences they cannot escape.", "Meditations": "Personal reflections on judgment, duty, change and the limits of our control. Marcus Aurelius returns again and again to the challenge of living thoughtfully among other people.", "Piranesi": "Piranesi lives in a vast house of halls, statues and tides. As he records its wonders, clues begin to disturb his understanding of the world and his own identity.", "The Creative Act": "Rubin explores creativity as a way of paying attention. Reflections on observation, experimentation and openness invite readers to develop their own relationship with making things.", "Dune": "On the desert planet Arrakis, Paul Atreides is drawn into a struggle over power, belief and a vital resource. Ecology and politics intertwine in a vast science-fiction world.", "Letters to a Young Poet": "In letters to an aspiring writer, Rilke reflects on solitude, uncertainty, love and the patience involved in finding a voice of one’s own.", "The Midnight Library": "Between life and death lies a library of possible lives. Nora Seed explores the paths she might have taken and reconsiders regret, choice and what makes a life worth living."};
 function backDescription(b){return b.blurb||exampleBlurbs[b.title]||'Add the back-cover description using Edit book & notes.';}
 function bookMarkup(b){return `<span class="shadow"></span><span class="book"><span class="face back"><span class="back-label">ABOUT THE BOOK</span><span class="back-title">${esc(b.title)}</span><span class="back-blurb">${esc(backDescription(b))}</span><span class="back-imprint">READING ROOM</span></span><span class="pages"></span><span class="top-page"></span><span class="face spine"><span class="spine-title">${esc(b.title)}</span><span class="spine-mark">${esc(b.author[0])}</span></span><span class="face front ${b.cover?'has-image':''}">${b.cover?`<img src="${b.cover}" alt="${esc(b.title)} cover">`:`<span class="cover-top">${esc(b.category)}</span><span class="cover-title">${esc(b.title)}</span><span class="cover-art" aria-hidden="true">${coverIllustration(b)}</span><span class="cover-author">${esc(b.author)}</span>`}</span></span>`;}
-function setSourcePosition(button,id){const shelf=$('shelf'),slot=Array.from(shelf.children).find(el=>el.dataset.id===id);if(!slot)return;const a=slot.getBoundingClientRect(),b=button.getBoundingClientRect(),row=shelf.getBoundingClientRect(),frame=$('shelf-frame').getBoundingClientRect();const scale=row.width/shelf.offsetWidth||1;const x=frame.left+shelf.offsetLeft+(a.left-row.left+a.width/2)/scale;const y=frame.top+shelf.offsetTop+(a.bottom-row.top)/scale;button.style.setProperty('--source-x',(x-b.left-b.width/2)+'px');button.style.setProperty('--source-y',(y-b.bottom)+'px');}
-
-function syncPulled(){clearTimeout(returnTimer);const button=$('pulled-book'),frame=$('shelf-frame');const b=state.books.find(b=>b.id===selected);if(!b){const previous=pulledId;setSourcePosition(button,previous);button.classList.remove('out','back-facing');frame.classList.remove('is-pulled');button.setAttribute('aria-hidden','true');button.tabIndex=-1;$('interaction-hint').textContent='Click a spine to pull out a book.';returnTimer=setTimeout(()=>{if(selected===null){button.hidden=true;button.innerHTML='';pulledId=null;$('shelf').querySelectorAll('[data-id]').forEach(el=>el.classList.remove('extracted'));}},matchMedia('(prefers-reduced-motion: reduce)').matches?0:820);return;}
-const changed=pulledId!==b.id;button.hidden=false;button.tabIndex=0;button.removeAttribute('aria-hidden');button.style.setProperty('--height',b.height+'px');button.style.setProperty('--color',b.color);button.style.setProperty('--text',contrast(b.color));if(changed){button.classList.remove('out','back-facing');button.innerHTML=bookMarkup(b);setSourcePosition(button,b.id);void button.offsetWidth;pulledId=b.id;}frame.classList.add('is-pulled');button.classList.add('out');button.classList.toggle('back-facing',facing==='back');button.setAttribute('aria-label',b.title+': swipe or drag to turn; click to return to shelf');$('interaction-hint').textContent=facing==='back'?'Swipe to see the front · Click to return.':'Swipe to read the back · Click to return.';}
+function setSourcePosition(button,id){
+ const slot=Array.from($('shelf').children).find(el=>el.dataset.id===id);if(!slot)return;
+ const a=slot.getBoundingClientRect(),frame=$('shelf-frame').getBoundingClientRect();
+ // Use the untranslated layout origin, never the moving foreground rectangle.
+ const baseLeft=frame.left+button.offsetLeft,baseBottom=frame.top+button.offsetTop+button.offsetHeight;
+ button.style.setProperty('--source-x',(a.left+a.width/2-baseLeft-button.offsetWidth/2)+'px');
+ button.style.setProperty('--source-y',(a.bottom-baseBottom)+'px');
+}
+function finishReturn(){if(selected!==null)return;clearTimeout(returnTimer);const button=$('pulled-book');button.hidden=true;button.innerHTML='';button.classList.remove('returning','dragging','instant');pulledId=null;$('shelf').querySelectorAll('[data-id]').forEach(el=>el.classList.remove('extracted'));}
+function syncPulled(){
+ clearTimeout(returnTimer);const button=$('pulled-book'),frame=$('shelf-frame'),b=state.books.find(b=>b.id===selected);
+ if(!b){
+  swipeStart=null;button.style.setProperty('--return-yaw',(90+360*Math.round((readBookAngle()-90)/360))+'deg');setSourcePosition(button,pulledId);button.classList.remove('out','back-facing','dragging');button.classList.add('returning');
+  for(const key of ['--yaw','--turn-time'])button.style.removeProperty(key);
+  frame.classList.remove('is-pulled');button.setAttribute('aria-hidden','true');button.tabIndex=-1;$('interaction-hint').textContent='Click a spine to pull out a book.';
+  returnTimer=setTimeout(finishReturn,matchMedia('(prefers-reduced-motion: reduce)').matches?0:850);return;
+ }
+ const changed=pulledId!==b.id||button.classList.contains('returning');button.hidden=false;button.tabIndex=0;button.removeAttribute('aria-hidden');button.style.setProperty('--height',b.height+'px');button.style.setProperty('--color',b.color);button.style.setProperty('--text',contrast(b.color));
+ if(changed){
+  swipeStart=null;button.classList.add('instant');button.classList.remove('out','back-facing','dragging','returning');
+  for(const key of ['--yaw','--turn-time','--return-yaw'])button.style.removeProperty(key);
+  button.innerHTML=bookMarkup(b);setSourcePosition(button,b.id);bookAngle=-18;
+  // Commit a fresh, fully aligned source pose before enabling transitions.
+  void button.querySelector('.book').getBoundingClientRect();
+  button.classList.remove('instant');void button.offsetWidth;pulledId=b.id;
+ }
+ frame.classList.add('is-pulled');button.classList.add('out');button.classList.toggle('back-facing',facing==='back');button.setAttribute('aria-label',b.title+': drag to turn; click to return to shelf');
+ $('interaction-hint').textContent='Drag to turn · Release to snap · Click to return.';
+}
 function render(){document.title=state.title+' · Reading room';$('heading').textContent=state.title;$('bio').textContent=state.bio;$('sample-label').hidden=!state.demo;const q=$('search').value.trim().toLowerCase();visible=state.books.filter(b=>(filter==='all'||(filter==='favorite'?b.favorite:b.category===filter))&&(`${b.title} ${b.author} ${b.review}`.toLowerCase().includes(q)));const sort=$('sort').value;if(sort==='title')visible.sort((a,b)=>a.title.localeCompare(b.title));if(sort==='date')visible.sort((a,b)=>b.date.localeCompare(a.date));if(sort==='rating')visible.sort((a,b)=>b.rating-a.rating);if(selected!==null&&!visible.some(b=>b.id===selected)){selected=null;facing='front';}$('shelf').innerHTML=visible.length?visible.map(b=>`<button class="slot ${b.id===selected?'selected':''}" data-id="${esc(b.id)}" style="--color:${b.color};--text:${contrast(b.color)};--height:${b.height}px" aria-label="${esc(b.title)} by ${esc(b.author)}" aria-pressed="${b.id===selected}">${bookMarkup(b)}</button>`).join(''):'<div class="empty">'+(state.books.length?'No books found. Try another search or filter.':'Your next chapter starts here.<br><button class="small-button" id="empty-add">Add your first book +</button>')+'</div>';$('count').textContent=visible.length+' / '+state.books.length+' '+(state.demo?'example books':'books read');updateNavigation();renderDetails();syncPulled();$('shelf').querySelectorAll('[data-id]').forEach(button=>button.onclick=()=>select(button.dataset.id,false,true));$('empty-add')?.addEventListener('click',()=>openBook());}
 function updateNavigation(){const index=visible.findIndex(b=>b.id===selected);$('previous').disabled=!visible.length||index===0;$('next').disabled=!visible.length||index===visible.length-1;}
 function select(id,scroll=false,cycle=false){clearTimeout(scrollTimer);const previous=selected;if(cycle&&selected===id){selected=null;facing='front';}else{selected=id;facing='front';}$('shelf').querySelectorAll('[data-id]').forEach(button=>{const active=button.dataset.id===selected;button.classList.toggle('selected',active);button.classList.toggle('extracted',active||(selected===null&&button.dataset.id===previous));button.setAttribute('aria-pressed',String(active));});updateNavigation();renderDetails();syncPulled();}
 
 function renderDetails(){const b=state.books.find(b=>b.id===selected);$('details').hidden=!b;if(!b)return;const date=b.date?new Intl.DateTimeFormat('en',{month:'short',year:'numeric',day:'numeric'}).format(new Date(b.date+'T12:00:00')):'';$('details').innerHTML=`<div><div class="eyebrow">${esc(b.category)}${b.favorite?' · a favorite':''}</div><h2 class="book-title">${esc(b.title)}</h2><p class="author">${esc(b.author)}</p><div class="metadata">${b.rating?`<span class="rating" aria-label="${b.rating} out of 5 stars">${'★'.repeat(b.rating)}${'☆'.repeat(5-b.rating)}</span>`:''}${date?`<span>Finished ${esc(date)}</span>`:''}</div></div><div><div class="note-label">${facing==='back'?'About this book':state.demo?'Make this shelf your own':'Reading notes'}</div><p class="note">${facing==='back'?esc(backDescription(b)).replace(/\n/g,'<br>'):b.review?esc(b.review).replace(/\n/g,'<br>'):state.demo?'A book’s spine is only the beginning. Add your own books, a few thoughts, and the passages that stayed with you.':'No notes yet. Some stories are still settling in.'}</p><div class="detail-actions"><button id="edit-selected">${state.demo?'Replace or edit this book':'Edit book & notes'}</button><button id="toggle-favorite">${b.favorite?'Remove from favorites':'Make a favorite'}</button></div></div>`;$('edit-selected').onclick=()=>openBook(b.id);$('toggle-favorite').onclick=()=>{b.favorite=!b.favorite;persist();};}
-function flipBook(){if(!selected)return;facing=facing==='front'?'back':'front';renderDetails();syncPulled();}
+function readBookAngle(){
+ try{const transform=getComputedStyle($('pulled-book').querySelector('.book')).transform;const m=new DOMMatrixReadOnly(transform);const raw=Math.atan2(-m.m13,m.m11)*180/Math.PI;return raw+360*Math.round((bookAngle-raw)/360);}catch{return bookAngle;}
+}
+function nearestBookFace(angle,velocity=0){const momentum=Math.max(-90,Math.min(90,velocity*160));return -18+180*Math.round((angle+momentum+18)/180);}
+function turnBookTo(target,velocity=0){
+ if(!selected)return;const button=$('pulled-book'),current=readBookAngle();
+ button.style.setProperty('--yaw',current+'deg');void button.offsetWidth;button.classList.remove('dragging');
+ const duration=Math.max(180,Math.min(480,Math.abs(target-current)/Math.max(.45,Math.abs(velocity))));
+ button.style.setProperty('--turn-time',duration+'ms');button.style.setProperty('--yaw',target+'deg');bookAngle=target;
+ facing=Math.abs(Math.round((target+18)/180))%2?'back':'front';renderDetails();syncPulled();
+}
+function flipBook(){if(selected)turnBookTo(bookAngle+180);}
 const foreground=$('pulled-book');
-foreground.onpointerdown=e=>{if(!selected||!e.isPrimary||e.button!==0)return;suppressBookClick=false;swipeStart={id:e.pointerId,x:e.clientX,y:e.clientY,book:selected};foreground.setPointerCapture(e.pointerId);};
-foreground.onpointerup=e=>{if(!swipeStart||e.pointerId!==swipeStart.id)return;const gesture=swipeStart;swipeStart=null;const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;if(foreground.hasPointerCapture(e.pointerId))foreground.releasePointerCapture(e.pointerId);if(Math.abs(dx)>=40&&Math.abs(dx)>Math.abs(dy)*1.25&&selected===gesture.book){suppressBookClick=true;flipBook();}else if(Math.hypot(dx,dy)>12){suppressBookClick=true;}};
-foreground.onpointercancel=()=>{swipeStart=null;suppressBookClick=false;};
-foreground.onlostpointercapture=()=>{swipeStart=null;};
+foreground.onpointerdown=e=>{
+ if(!selected||!e.isPrimary||e.button!==0)return;
+ suppressBookClick=false;const angle=readBookAngle();
+ swipeStart={id:e.pointerId,x:e.clientX,y:e.clientY,lastX:e.clientX,time:e.timeStamp,lastMotion:e.timeStamp,book:selected,angle,liveAngle:angle,velocity:0,dragging:false,vertical:false};
+ foreground.setPointerCapture(e.pointerId);
+};
+foreground.onpointermove=e=>{
+ const g=swipeStart;if(!g||g.id!==e.pointerId||selected!==g.book)return;
+ const dx=e.clientX-g.x,dy=e.clientY-g.y;
+ if(!g.dragging&&!g.vertical){if(Math.abs(dx)>6&&Math.abs(dx)>Math.abs(dy)*1.2){g.dragging=true;foreground.classList.add('dragging');}else if(Math.abs(dy)>10&&Math.abs(dy)>Math.abs(dx))g.vertical=true;}
+ if(g.dragging){
+  const dt=Math.max(1,e.timeStamp-g.time),speed=(e.clientX-g.lastX)*.65/dt;
+  if(e.clientX!==g.lastX){g.velocity=speed*.65+g.velocity*.35;g.lastMotion=e.timeStamp;}g.liveAngle=g.angle+dx*.65;
+  foreground.style.setProperty('--yaw',g.liveAngle+'deg');bookAngle=g.liveAngle;
+ }
+ g.lastX=e.clientX;g.time=e.timeStamp;
+};
+foreground.onpointerup=e=>{
+ const g=swipeStart;if(!g||g.id!==e.pointerId)return;
+ // Include the last position even when the browser coalesced movement events.
+ foreground.onpointermove(e);swipeStart=null;
+ if(foreground.hasPointerCapture(e.pointerId))foreground.releasePointerCapture(e.pointerId);
+ if(g.dragging&&selected===g.book){suppressBookClick=true;const velocity=e.timeStamp-g.lastMotion>80?0:g.velocity;turnBookTo(nearestBookFace(g.liveAngle,velocity),velocity);}
+ else if(Math.hypot(e.clientX-g.x,e.clientY-g.y)>12)suppressBookClick=true;
+};
+function cancelBookDrag(){const g=swipeStart;swipeStart=null;if(g?.dragging&&selected===g.book){suppressBookClick=true;turnBookTo(nearestBookFace(g.liveAngle));}else foreground.classList.remove('dragging');}
+foreground.onpointercancel=cancelBookDrag;
+foreground.onlostpointercapture=()=>{if(swipeStart)cancelBookDrag();};
 foreground.onclick=e=>{if(suppressBookClick&&e.detail!==0){suppressBookClick=false;return;}suppressBookClick=false;if(selected)select(selected,false,true);};
-foreground.onkeydown=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();e.stopPropagation();if(!e.repeat)flipBook();}};
+foreground.onkeydown=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();e.stopPropagation();if(!e.repeat&&selected)turnBookTo(bookAngle+(e.key==='ArrowRight'?180:-180));}};
+foreground.addEventListener('transitionend',e=>{if(e.target===foreground.querySelector('.book')&&e.propertyName==='transform'&&selected===null)finishReturn();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&selected&&!document.querySelector('dialog[open]')){facing='back';select(selected,false,true);}});document.querySelectorAll('[data-filter]').forEach(button=>button.onclick=()=>{filter=button.dataset.filter;document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('active',b===button));render();});$('search').oninput=render;$('sort').onchange=render;function navigate(delta){const i=visible.findIndex(b=>b.id===selected);const next=i<0?(delta>0?0:visible.length-1):i+delta;if(visible[next])select(visible[next].id,true);}$('previous').onclick=()=>navigate(-1);$('next').onclick=()=>navigate(1);$('shelf').onkeydown=e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();navigate(e.key==='ArrowRight'?1:-1);Array.from($('shelf').children).find(el=>el.dataset.id===selected)?.focus({preventScroll:true});}};
 function manager(){ $('profile-title').value=state.title;$('profile-bio').value=state.bio;$('clear-demo').hidden=!state.demo;$('manager-list').innerHTML=state.books.map(b=>`<div class="manager-item"><span class="dot" style="background:${b.color}"></span><div class="item-text">${esc(b.title)}<small>${esc(b.author)}</small></div><button data-edit="${esc(b.id)}">Edit</button><button class="danger" data-delete="${esc(b.id)}">Delete</button></div>`).join('')||'<p class="hint">An empty shelf, ready for your first book.</p>';$('manager-list').querySelectorAll('[data-edit]').forEach(el=>el.onclick=()=>openBook(el.dataset.edit));$('manager-list').querySelectorAll('[data-delete]').forEach(el=>el.onclick=()=>{const b=state.books.find(b=>b.id===el.dataset.delete);if(confirm(`Remove “${b.title}” from your shelf?`)){state.books=state.books.filter(b=>b.id!==el.dataset.delete);persist();manager();}});if(!$('manager').open)$('manager').showModal();}
 $('manage').onclick=manager;$('profile-form').onsubmit=e=>{e.preventDefault();state.title=$('profile-title').value.trim()||'My bookshelf';state.bio=$('profile-bio').value.trim();persist();};$('clear-demo').onclick=()=>{if(confirm('Remove all example books and start your own empty shelf?')){state.books=[];state.demo=false;persist();manager();}};document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();}}));
@@ -161,7 +242,7 @@ $('add').onclick=()=>openBook();$('cancel-book').onclick=()=>$('book-dialog').cl
 $('book-form').onsubmit=e=>{e.preventDefault();const old=state.books.find(b=>b.id===editing);const b={id:editing||crypto.randomUUID(),height:old?.height||265,title:$('title').value.trim(),author:$('author').value.trim(),category:$('category').value,date:$('date').value,rating:Number($('rating').value),color:$('color').value,review:$('review').value.trim(),blurb:$('blurb').value.trim(),favorite:$('favorite').checked,cover:pendingCover};if(!b.title||!b.author){toast('Add a title and author.');return;}if(old)state.books[state.books.indexOf(old)]=b;else state.books.push(b);selected=b.id;facing='front';pulledId=null;filter='all';$('search').value='';document.querySelectorAll('[data-filter]').forEach(el=>el.classList.toggle('active',el.dataset.filter==='all'));if(!state.books.some(book=>book.id.startsWith('demo-')))state.demo=false;persist();$('book-dialog').close();if($('manager').open)manager();};
 function downloadFile(name,content,type){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);}
 $('export').onclick=()=>downloadFile('my-bookshelf.json',JSON.stringify(state,null,2),'application/json');$('import').onclick=()=>$('import-file').click();$('import-file').onchange=async()=>{const file=$('import-file').files[0];if(!file)return;try{if(file.size>30000000)throw Error('That backup is too large (maximum 30 MB).');const imported=validate(JSON.parse(await file.text()));if(confirm(`Replace your collection with ${imported.books.length} books from this backup?`)){state=imported;selected=null;facing='front';persist();manager();}}catch(e){toast(e.message||'That backup could not be read.');}$('import-file').value='';};
-function downloadWebsite(){const doc=document.documentElement.cloneNode(true);doc.querySelector('#bookshelf-data').textContent=JSON.stringify(state).replace(/</g,'\\u003c');doc.querySelectorAll('dialog').forEach(d=>d.removeAttribute('open'));doc.querySelector('.toast')?.remove();doc.querySelector('#shelf').innerHTML='';doc.querySelector('#pulled-book').innerHTML='';doc.querySelector('#pulled-book').hidden=true;doc.querySelector('#pulled-book').classList.remove('out','back-facing');doc.querySelector('#shelf-frame').classList.remove('is-pulled');doc.querySelector('#details').innerHTML='';doc.querySelector('#manager-list').innerHTML='';doc.querySelectorAll('input,textarea').forEach(el=>{el.removeAttribute('value');if(el.tagName==='TEXTAREA')el.textContent='';});doc.querySelector('#cover-preview').removeAttribute('src');downloadFile('my-bookshelf.html','<!doctype html>\n'+doc.outerHTML,'text/html');toast('Website downloaded with your current collection');}
+function downloadWebsite(){const doc=document.documentElement.cloneNode(true);doc.querySelector('#bookshelf-data').textContent=JSON.stringify(state).replace(/</g,'\\u003c');doc.querySelectorAll('dialog').forEach(d=>d.removeAttribute('open'));doc.querySelector('.toast')?.remove();doc.querySelector('#shelf').innerHTML='';doc.querySelector('#pulled-book').innerHTML='';doc.querySelector('#pulled-book').hidden=true;doc.querySelector('#pulled-book').classList.remove('out','back-facing','instant','dragging','returning');for(const key of ['--yaw','--turn-time','--return-yaw'])doc.querySelector('#pulled-book').style.removeProperty(key);doc.querySelector('#shelf-frame').classList.remove('is-pulled');doc.querySelector('#details').innerHTML='';doc.querySelector('#manager-list').innerHTML='';doc.querySelectorAll('input,textarea').forEach(el=>{el.removeAttribute('value');if(el.tagName==='TEXTAREA')el.textContent='';});doc.querySelector('#cover-preview').removeAttribute('src');downloadFile('my-bookshelf.html','<!doctype html>\n'+doc.outerHTML,'text/html');toast('Website downloaded with your current collection');}
 $('download').onclick=downloadWebsite;$('download-footer').onclick=downloadWebsite;render();
 </script>
 </body>
